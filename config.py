@@ -4,7 +4,7 @@ batch_size, num_point, min_num_point = 48, 2048, -100
 
 min_depth_count = 0.8
 
-model_root = "trained_network_dataengine_wrs09_1000/models/model.t7"
+model_root = "trained_network/models/model.t7"
 
 camera_mat = [[1.78657788e+03, 0.00000000e+00, 9.84213745e+02], [0.00000000e+00, 1.78574548e+03, 6.09480774e+02], [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]]
                        
