@@ -11,7 +11,7 @@ import numpy as np
 import cv2
 import os
 
-def _point_cloud_to_cv_z(point_cloud):
+def _point_cloud_to_cv_depth(point_cloud):
     depth_map = point_cloud.copy_data("z")
     
     depth_map[np.isnan(depth_map)[:, :]] = 0
@@ -20,9 +20,9 @@ def _point_cloud_to_cv_z(point_cloud):
 
     depth_map = depth_map*10
     
-    depth_map_uint16 = depth_map.astype(np.uint16)
+    # depth_map_uint16 = depth_map.astype(np.uint16)
 
-    return depth_map_uint16
+    return depth_map
 
 class ZividPcCam:
     def __init__(self, settings_file = "/home/fhagelskjaer/nov13_spec.yml"):
@@ -71,7 +71,6 @@ def main():
     print( zivid_cam.camera_matrix() )
 
     while True:
-
         input_string = input("write output folder name: ('q' to exit)\n") 
 
         if input_string == 'q':
@@ -81,13 +80,11 @@ def main():
         path = os.path.join(parent_dir, input_string)  
         os.mkdir(path)
             
-        point_cloud_open3d, depth_map, rgb = zivid_cam.compute()
+        target, depth, rgb = zivid_cam.compute()
         bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
 
         cv2.imwrite( path + '/' + "color.png", bgr)
-        cv2.imwrite( path + '/' + "depth_map.png", depth_map)
-
-        # o3d.io.write_point_cloud( path + '/' + "point_cloud.pcd", point_cloud_open3d) 
+        cv2.imwrite( path + "/depth_image_01mm_resolution.png", (depth*10).astype(np.uint16))
 
 if __name__ == "__main__":
     main()
