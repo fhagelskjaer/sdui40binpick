@@ -18,10 +18,6 @@ def _point_cloud_to_cv_depth(point_cloud):
     
     depth_map[ depth_map >= (2**16)/10 ] = 0
 
-    depth_map = depth_map*10
-    
-    # depth_map_uint16 = depth_map.astype(np.uint16)
-
     return depth_map
 
 class ZividPcCam:
@@ -47,7 +43,7 @@ class ZividPcCam:
         with self.camera.capture(self.settings) as frame:
             point_cloud = frame.point_cloud()
 
-        depth_map = _point_cloud_to_cv_z(point_cloud)
+        depth_map = _point_cloud_to_cv_depth(point_cloud)
 
         xyz = point_cloud.copy_data("xyz")
         rgba = point_cloud.copy_data("rgba")

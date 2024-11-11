@@ -272,6 +272,7 @@ class ParaPose:
             
             # perform a depth render comparison            
             if result[2,3] < 50:
+                print("Object too close to camera")
                 continue
     
             detection = [result, {'fit': inliers, 'depth_count': 0, 'id': str(uuid.uuid1().hex)}]
@@ -464,7 +465,7 @@ class ParaPose:
                 full_collision_free_list += not_in_collision_list
 
         if len(full_collision_free_list) == 0:
-            return None, None
+            return None
 
         pose_estimation_dictionary = {"gel": full_collision_free_list,
                                       "bp": bin_transformation}
