@@ -92,7 +92,7 @@ class ParaPose:
         self.hull = None
 
 
-    def computePointsInBin(self, target, source_original, source_mesh_original, source_inner, source_mesh_inner, transformation_bin, voxel_grid_search_size, viz=False):
+    def computePointsInBin(self, target, source_original, source_mesh_original, source_inner, source_mesh_inner, transformation_bin, voxel_grid_search_size, points_possibly_inside_points = None, viz=False):
         
         start_time_seconds = time.time()
         
@@ -142,24 +142,6 @@ class ParaPose:
         if viz:
             print('ICP and KDE tree took %0.3f s' % (time.time() - start_time_seconds))
 
-
-        target_show_voxel = target_show.voxel_down_sample(voxel_grid_search_size)
-
-
-        source_distance, indecies_source = self.bin_tree.query(np.asarray(target_show_voxel.points), k=1)
-        small_distance, indecies_small = self.bin_tree_smaller.query(np.asarray(target_show_voxel.points), k=1)
-
-        inside_the_bin = source_distance > small_distance 
-        inside_the_bin = np.reshape(inside_the_bin, (-1))
-
-        pcd_o3d_show_voxel = o3d.geometry.PointCloud()
-        pcd_o3d_show_voxel.points = o3d.utility.Vector3dVector(np.asarray(target_show_voxel.points)[inside_the_bin, :])
-        # pcd_o3d_show_voxel.colors = o3d.utility.Vector3dVector(np.asarray(target_show_voxel.colors)[inside_the_bin, :])
-
-        if viz:
-            # o3d.visualization.draw_geometries([pcd_o3d_show])
-            print('Inside bin took %0.3f s' % (time.time() - start_time_seconds))
-
         
         pcd_o3d = target_show.voxel_down_sample(1)
 
@@ -169,7 +151,22 @@ class ParaPose:
 
         pointcloud_pointnet_pvn = np.concatenate([np.asarray(pcd_o3d.points), np.asarray(pcd_o3d.normals)], axis=1)
 
-        filtered_points = np.asarray(pcd_o3d_show_voxel.points)
+
+        if points_possibly_inside_points is None:
+            target_show_voxel = target_show.voxel_down_sample(voxel_grid_search_size)
+            points_possibly_inside_points = np.asarray(target_show_voxel.points)
+
+        source_distance, indecies_source = self.bin_tree.query(points_possibly_inside_points, k=1)
+        small_distance, indecies_small = self.bin_tree_smaller.query(points_possibly_inside_points, k=1)
+
+        inside_the_bin = source_distance > small_distance 
+        inside_the_bin = np.reshape(inside_the_bin, (-1))
+
+        if viz:
+            # o3d.visualization.draw_geometries([pcd_o3d_show])
+            print('Inside bin took %0.3f s' % (time.time() - start_time_seconds))
+
+        filtered_points = points_possibly_inside_points[inside_the_bin, :]
 
         index_filter = list(range(filtered_points.shape[0]))
         np.random.shuffle(index_filter)
