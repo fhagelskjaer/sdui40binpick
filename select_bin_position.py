@@ -2,10 +2,18 @@ import numpy as np
 import cv2
 import open3d as o3d
 import sys
+import json
 
 from to_cloud import create_point_cloud_rgb, create_point_cloud
 
-def select_word_precense_new(pcd):
+def load_json_config(json_config):
+    with open(json_config) as f:
+        config_information = json.load(f)
+    image_size = config_information["image_size"]
+    camera_mat = np.array(config_information["camera_mat"])
+    return camera_mat, image_size
+
+def select_points_in_pointcloud(pcd):
     vis = o3d.visualization.VisualizerWithEditing()
     # vis.create_window()
     vis.create_window(
@@ -20,8 +28,7 @@ def select_word_precense_new(pcd):
     vis.run()  # user picks points
     vis.destroy_window()
     return vis.get_picked_points()
-   
-   
+
 def create_matrix_string(transformation):
     output_string = "["
     for i in range(4):
@@ -33,21 +40,21 @@ def create_matrix_string(transformation):
     output_string += "]"
     return output_string
 
+json_config = sys.argv[1]
+camera_mat, image_size = load_json_config(json_config)
+intrinsics = [camera_mat[0,0], camera_mat[1,1], camera_mat[0,2], camera_mat[1,2]]
 
-intrinsics = (1.78657788e+03, 1.78574548e+03, 9.84213745e+02, 6.09480774e+02)
-image_size = (1200,1944)
-    
 print( sys.argv[0] )
     
-depth_image_file = sys.argv[2]
+depth_image_file = sys.argv[3]
 
 if depth_image_file.split(".")[-1] == "pcd":
     target = o3d.io.read_point_cloud(depth_image_file)
 else:
     depth = cv2.imread(depth_image_file, cv2.IMREAD_ANYDEPTH)
     depth = depth.astype(np.float32)/10        
-    if len(sys.argv) == 4:
-        rgb_image_file = sys.argv[2]
+    if len(sys.argv) == 5:
+        rgb_image_file = sys.argv[4]
         bgr = cv2.imread(rgb_image_file)
         rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
         target = create_point_cloud_rgb(depth, rgb, intrinsics)
@@ -56,13 +63,13 @@ else:
     
 # target = target.scale(1000.0, np.array([0.0,0.0,0.0])) # only for realsense
 
-source_mesh = o3d.io.read_triangle_mesh(sys.argv[1])
+source_mesh = o3d.io.read_triangle_mesh(sys.argv[2])
 source_mesh.paint_uniform_color([0.16470588, 0.20392157, 0.22352941]) # Gun-metal gray
 source = source_mesh.sample_points_uniformly(number_of_points=20000)
 
 
-source_points = select_word_precense_new(source)
-target_points = select_word_precense_new(target)
+source_points = select_points_in_pointcloud(source)
+target_points = select_points_in_pointcloud(target)
 
 corres = o3d.utility.Vector2iVector() 
         
