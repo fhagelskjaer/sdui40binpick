@@ -11,6 +11,7 @@ import joblib
 import time
 import uuid
 import sys
+import json
 
 from scipy.spatial import ConvexHull
 
@@ -22,8 +23,25 @@ from keymatchnet.model import DGCNN_gpvn
 from keymatchnet.pe_utils import compute, mm_by_keypoint, addi
 from keymatchnet.data import normalize_1d, normalize_2d, pc_center2cp
 
-np.set_printoptions(suppress=True)
+def load_json_config(json_config):
+    with open(json_config) as f:
+        config_information = json.load(f)
+    model_root = config_information["model_root"]
+    number_of_keypoints = config_information["number_of_keypoints"]
+    bin_name = config_information["bin_name"]
+    default_color = config_information["default_color"]
+    pose_estimation_parameter_set = config_information["pose_estimation_parameter_set"]
+    batch_size = config_information["batch_size"]
+    num_point = config_information["num_point"]
+    min_num_point = config_information["min_num_point"]
+    image_size = config_information["image_size"]
+    min_depth_count = config_information["min_depth_count"]
+    min_pc_dist = config_information["min_pc_dist"]
+    max_pc_dist = config_information["max_pc_dist"]
+    bin_transformation = np.array(config_information["bin_transformation"])
+    camera_mat = np.array(config_information["camera_mat"])
 
+    return number_of_keypoints, batch_size, num_point, min_num_point, min_depth_count, model_root, camera_mat, image_size, default_color, bin_name, bin_transformation, pose_estimation_parameter_set, min_pc_dist, max_pc_dist, bin_transformation, camera_mat
 
 def visualize_coordinate(transform):
     coordinate_z = o3d.geometry.TriangleMesh.create_cylinder(radius=5, height=100.0)
@@ -48,14 +66,12 @@ def visualize_coordinate(transform):
 
     return coordinate_z, coordinate_y, coordinate_x
 
-
 def center_point_cloud_in_z(target, min_dist_z, max_dist_z):
     points = np.asarray(target.points)
     target = target.select_by_index(np.where(points[:, 2] < max_dist_z)[0])
     points = np.asarray(target.points)
     target = target.select_by_index(np.where(points[:, 2] > min_dist_z)[0])
     return target
-
 
 class ParaPose:
     def __init__(self, grasp_pose_file_name, model_name_def, batch_size, num_point,
@@ -139,20 +155,15 @@ class ParaPose:
         self.bin_tree = KDTree(np.asarray(source.points), leaf_size=2)
         self.bin_tree_smaller = KDTree(smaller_point_cloud, leaf_size=2)
 
-        # if viz:
-        print('ICP and KDE tree took %0.3f s' % (time.time() - start_time_seconds))
-
-        
-
+        if viz:
+            print('ICP and KDE tree took %0.3f s' % (time.time() - start_time_seconds))
 
         pcd_o3d = target_show.voxel_down_sample(1)
 
         pcd_o3d.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=10, max_nn=30))
         pcd_o3d.orient_normals_to_align_with_direction(orientation_reference=np.array([0.0, 0.0, -1.0]))
 
-
         pointcloud_pointnet_pvn = np.concatenate([np.asarray(pcd_o3d.points), np.asarray(pcd_o3d.normals)], axis=1)
-
 
         if points_possibly_inside_points is None:
             target_show_voxel = target_show.voxel_down_sample(voxel_grid_search_size)
@@ -249,21 +260,6 @@ class ParaPose:
             transform_list.append({"t": transform, "s": score})
 
         return transform_list
-
-        # accepted_poses = self.filterPoses(
-        #                     transform_list,
-        #                     target,
-        #                     depth,
-        #                     start_time_seconds,
-        #                     min_addi_distance=min_addi_distance,
-        #                     min_depth_count=min_depth_count,
-        #                     depth_background_distance=depth_background_distance,
-        #                     depth_acc_dist=depth_acc_dist,
-        #                     depth_scale=depth_scale,
-        #                     viz=viz)
-
-        # return accepted_poses
-
 
     def filterPoses(self, 
                         transform_list,
@@ -381,7 +377,6 @@ class ParaPose:
 
         return accepted_poses
 
-
     def computeGraspPoses(self, accepted_poses, bin_name, bin_transformation, target_show, finger_color,
                           minimum_angle_to_camera, z_distance_offset_for_collision_grasp, 
                           tcp_length, finger_width, finger_depth, angle_comparison_vector=[0,0,1], viz=False):
@@ -396,8 +391,6 @@ class ParaPose:
         mesh_bin.paint_uniform_color([0.1, 0.1, 0.9])
 
         full_collision_free_list = []
-
-
 
         mesh_cylinder_og = o3d.geometry.TriangleMesh.create_box(width=finger_width,
                                                                 height=finger_depth,
@@ -566,19 +559,18 @@ def paramInitializer(args_model_root, args_k, args_emb_dims, num_key):
     
     return model, device
     
-    
 
 def main():
-    depth_image_file = sys.argv[1]
-    
-    if len(sys.argv) == 3:
-        rgb_image_file = sys.argv[2]
-        
+    np.set_printoptions(suppress=True)
     np.random.seed(0)
 
-    from config_novo_zivid import number_of_keypoints, batch_size, num_point, min_num_point, min_depth_count, model_root, camera_mat, image_size, gun_metal_grey, bin_name, bin_transformation, pose_estimation_parameter_set, min_pc_dist, max_pc_dist
-    bin_transformation = np.array(bin_transformation)
-    camera_mat = np.array(camera_mat)
+    depth_image_file = sys.argv[2]
+    
+    if len(sys.argv) == 4:
+        rgb_image_file = sys.argv[3]
+
+    json_config = sys.argv[1]
+    number_of_keypoints, batch_size, num_point, min_num_point, min_depth_count, model_root, camera_mat, image_size, default_color, bin_name, bin_transformation, pose_estimation_parameter_set, min_pc_dist, max_pc_dist, bin_transformation, camera_mat = load_json_config(json_config)
 
     # load model
     model, device = paramInitializer(args_model_root=model_root, args_k=number_of_keypoints, args_emb_dims=1024, num_key=number_of_keypoints)
@@ -587,10 +579,10 @@ def main():
     source_mesh_original = o3d.io.read_triangle_mesh(bin_name)
     source_mesh_inner = create_new_cad(source_mesh_original)
     
-    source_mesh_original.paint_uniform_color(gun_metal_grey)
+    source_mesh_original.paint_uniform_color(default_color)
     source_original = source_mesh_original.sample_points_uniformly(number_of_points=2000)
 
-    source_mesh_inner.paint_uniform_color(gun_metal_grey)
+    source_mesh_inner.paint_uniform_color(default_color)
     source_inner = source_mesh_inner.sample_points_uniformly(number_of_points=20000)
     
     # load all objects
@@ -623,22 +615,20 @@ def main():
         start_time_seconds = time.time()
 
         # read data
-        
         intrinsics = [camera_mat[0,0], camera_mat[1,1], camera_mat[0,2], camera_mat[1,2]]
-    
         if depth_image_file.split(".")[-1] == "pcd":
             target = o3d.io.read_point_cloud(depth_image_file)
             depth = point_cloud_to_depth_map(np.asarray(target.points), intrinsics, (image_size[1], image_size[0]) )
         else:
             depth = cv2.imread(depth_image_file, cv2.IMREAD_ANYDEPTH)
             depth = depth.astype(np.float32)/10        
-            if len(sys.argv) == 3:
+            if len(sys.argv) == 4:
                 bgr = cv2.imread(rgb_image_file)
                 rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
                 target = create_point_cloud_rgb(depth, rgb, intrinsics)
             else:
                 target = create_point_cloud(depth, intrinsics)
-                target.paint_uniform_color(gun_metal_grey)
+                target.paint_uniform_color(default_color)
 
         # remove unnessesary part of point cloud  
         target = center_point_cloud_in_z(target, min_pc_dist, max_pc_dist)
@@ -687,7 +677,7 @@ def main():
                                                                  bin_name,
                                                                  transformation_bin_corrected,
                                                                  target_show,
-                                                                 finger_color=gun_metal_grey,
+                                                                 finger_color=default_color,
                                                                  minimum_angle_to_camera=0.52359877559,
                                                                  z_distance_offset_for_collision_grasp=-20,
                                                                  tcp_length=230,
