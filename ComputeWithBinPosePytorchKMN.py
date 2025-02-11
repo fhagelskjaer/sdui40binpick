@@ -99,17 +99,17 @@ class ParaPose:
         source = copy.deepcopy(source_inner)
         source_mesh = copy.deepcopy(source_mesh_inner)
 
+
         result = o3d.pipelines.registration.registration_icp(source_original, target, 10, transformation_bin,
                                                              o3d.pipelines.registration.TransformationEstimationPointToPoint(),
                                                              o3d.pipelines.registration.ICPConvergenceCriteria(
                                                              max_iteration=10))
-
         transformation_bin_corrected = result.transformation
+
 
         source.transform(transformation_bin_corrected)
     
         source_mesh.transform(transformation_bin_corrected)
-
 
         self.source_mesh = source_mesh
 
@@ -130,7 +130,7 @@ class ParaPose:
 
         bin_mean_xyz = np.reshape(np.mean(np.asarray(source.points),axis=0), (1,3))
 
-        vertices = np.asarray(convex_hull[0].vertices)
+        # vertices = np.asarray(convex_hull[0].vertices)
         
         self.hull = ConvexHull( source.points )
 
@@ -139,10 +139,12 @@ class ParaPose:
         self.bin_tree = KDTree(np.asarray(source.points), leaf_size=2)
         self.bin_tree_smaller = KDTree(smaller_point_cloud, leaf_size=2)
 
-        if viz:
-            print('ICP and KDE tree took %0.3f s' % (time.time() - start_time_seconds))
+        # if viz:
+        print('ICP and KDE tree took %0.3f s' % (time.time() - start_time_seconds))
 
         
+
+
         pcd_o3d = target_show.voxel_down_sample(1)
 
         pcd_o3d.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=10, max_nn=30))
@@ -175,25 +177,20 @@ class ParaPose:
 
         return filtered_points, pointcloud_pointnet_pvn, target_show, transformation_bin_corrected
 
-    def computePoseList(self, device, model, target, depth, filtered_points, pointcloud_pointnet_pvn, start_time_seconds,
+    def computePoseList(self,
+                        device,
+                        model,
+                        filtered_points,
+                        pointcloud_pointnet_pvn,
                         feature_threshold_for_vote,
-                        min_addi_distance,
-                        min_depth_count,
-                        depth_background_distance,
-                        depth_acc_dist,
-                        depth_scale,
                         viz=False):
 
         if viz:
             print("Start of network")
-
-        detections = []
-        sorting_list = []
-        center_list = []
         
+        transform_list = []
 
         for cloud_index in range(len(filtered_points)):
-            best_detection_scores = []
             
             object_xyz = np.asarray(self.obj_pc.points)
             
@@ -202,7 +199,7 @@ class ParaPose:
             x = np.reshape(x, (1, -1, 3))
             fpi = farthest_point_sampler(x, self.number_of_keypoints)
 
-            object_xyz_feature = object_xyz[fpi[0], :]
+            # object_xyz_feature = object_xyz[fpi[0], :]
 
             obj_pc_temp = copy.deepcopy(self.obj_pc)
             R = obj_pc_temp.get_rotation_matrix_from_xyz(
@@ -247,12 +244,54 @@ class ParaPose:
             seg_pred, key_pred = model(data, obj, fpi, device)
 
             # compute the RANSAC
-            result, inliers = compute( seg_pred, [scene_info], key_pred, [obj_model], fpi, self.number_of_keypoints, feature_threshold_for_vote, device, mm_dist=mm_dist)
+            transform, score = compute( seg_pred, [scene_info], key_pred, [obj_model], fpi, self.number_of_keypoints, feature_threshold_for_vote, device, mm_dist=mm_dist)
 
-            # variation of the inside box verification created for opening of maersk2
+            transform_list.append({"t": transform, "s": score})
+
+        return transform_list
+
+        # accepted_poses = self.filterPoses(
+        #                     transform_list,
+        #                     target,
+        #                     depth,
+        #                     start_time_seconds,
+        #                     min_addi_distance=min_addi_distance,
+        #                     min_depth_count=min_depth_count,
+        #                     depth_background_distance=depth_background_distance,
+        #                     depth_acc_dist=depth_acc_dist,
+        #                     depth_scale=depth_scale,
+        #                     viz=viz)
+
+        # return accepted_poses
+
+
+    def filterPoses(self, 
+                        transform_list,
+                        target,
+                        depth,
+                        start_time_seconds,
+                        min_addi_distance,
+                        min_depth_count,
+                        depth_background_distance,
+                        depth_acc_dist,
+                        depth_scale,
+                        viz=False):
+
+        if viz:
+            print("Start of network")
+
+        detections = []
+        sorting_list = []
+        center_list = []
+        
+        for transform_info in transform_list:
+
+            transform, score = transform_info['t'], transform_info['s']
+
+     # variation of the inside box verification created for opening of maersk2
             if self.hull is not None:
                 model_center_h = np.append(self.model_center, np.array([1]))
-                center_points = result @ model_center_h
+                center_points = transform @ model_center_h
                 
                 center_list.append(center_points[:3]) # TODO <<<
                 
@@ -271,11 +310,11 @@ class ParaPose:
                     continue
             
             # perform a depth render comparison            
-            if result[2,3] < 50:
+            if transform[2,3] < 50:
                 print("Object too close to camera")
                 continue
     
-            detection = [result, {'fit': inliers, 'depth_count': 0, 'id': str(uuid.uuid1().hex)}]
+            detection = [transform, {'fit': score, 'depth_count': 0, 'id': str(uuid.uuid1().hex)}]
                                 
             detection = computeSingleCheck(detection, 
                                             depth,
@@ -331,20 +370,21 @@ class ParaPose:
                 to_draw.append(source_temp)
 
             scene_pc = o3d.geometry.PointCloud()
-            scene_pc.points = o3d.utility.Vector3dVector(np.array(center_list))
-            scene_pc.paint_uniform_color([1,0,0])
-            scene_pc.rotate(r, center=(0, 0, 0))
+            if len(center_list):
+                scene_pc.points = o3d.utility.Vector3dVector(np.array(center_list))
+                scene_pc.paint_uniform_color([1,0,0])
+                scene_pc.rotate(r, center=(0, 0, 0))
 
             self.source_mesh.rotate(r, center=(0, 0, 0))
 
             o3d.visualization.draw_geometries(to_draw + [newtarget] + [scene_pc])
 
-
         return accepted_poses
+
 
     def computeGraspPoses(self, accepted_poses, bin_name, bin_transformation, target_show, finger_color,
                           minimum_angle_to_camera, z_distance_offset_for_collision_grasp, 
-                          tcp_length, finger_width, finger_depth, viz=False):
+                          tcp_length, finger_width, finger_depth, angle_comparison_vector=[0,0,1], viz=False):
 
         fuze_trimesh = trimesh.load(bin_name)
         fuze_trimesh = fuze_trimesh.apply_transform(bin_transformation)
@@ -379,10 +419,9 @@ class ParaPose:
 
                 cam2tcp = np.dot(detection[0], obj2tcp)
 
-                # get z vector from rotation matrix
                 z_vector = cam2tcp[:3, 2]
-                angle = np.arccos(z_vector[2])
-                if angle > minimum_angle_to_camera:
+                angle = np.arccos( np.dot(z_vector, angle_comparison_vector) )
+                if angle > minimum_angle_to_camera: 
                     continue
 
                 mesh_cylinder = copy.deepcopy(mesh_cylinder_og)
@@ -518,6 +557,13 @@ def paramInitializer(args_model_root, args_k, args_emb_dims, num_key):
     model.eval()
     for param in model.parameters():
         param.requires_grad = False
+
+    data = torch.randn((1,6,2048), dtype=torch.float32)
+    obj = torch.randn((1,6,2048), dtype=torch.float32)
+    fpi = torch.zeros((1,20), dtype=torch.int64)
+
+    model(data, obj, fpi, device)
+    
     return model, device
     
     
@@ -530,7 +576,7 @@ def main():
         
     np.random.seed(0)
 
-    from config import number_of_keypoints, batch_size, num_point, min_num_point, min_depth_count, model_root, camera_mat, image_size, gun_metal_grey, bin_name, bin_transformation, pose_estimation_parameter_list, min_pc_dist, max_pc_dist
+    from config_novo_zivid import number_of_keypoints, batch_size, num_point, min_num_point, min_depth_count, model_root, camera_mat, image_size, gun_metal_grey, bin_name, bin_transformation, pose_estimation_parameter_set, min_pc_dist, max_pc_dist
     bin_transformation = np.array(bin_transformation)
     camera_mat = np.array(camera_mat)
 
@@ -548,26 +594,28 @@ def main():
     source_inner = source_mesh_inner.sample_points_uniformly(number_of_points=20000)
     
     # load all objects
-    parapose_list = []
-    for name, grasp_pose_file_name in pose_estimation_parameter_list:
+    parapose_set = {}
+    for key in pose_estimation_parameter_set.keys():
+        name, grasp_pose_file_name = pose_estimation_parameter_set[key]
         print(name, grasp_pose_file_name)
-        parapose_list.append(ParaPose(grasp_pose_file_name, name,
+        parapose_set[key] = ParaPose(grasp_pose_file_name, name,
                                       batch_size, num_point, number_of_keypoints, min_num_point,
-                                      camera_mat, image_size))
+                                      camera_mat, image_size)
 
     print("Start of algorithm")
 
     while True:
-        for input_idx in range(len(pose_estimation_parameter_list)):
+        for index, key in enumerate(pose_estimation_parameter_set.keys()):
             print(
-                "Idx: {} : {}".format(input_idx, pose_estimation_parameter_list[input_idx][0].split("/")[-1]))
+                "Idx: {} : {}".format(index, pose_estimation_parameter_set[key][0].split("/")[-1]))
         print("'q' to exit")
         input_string = input("Enter idx for objects: ")
         if input_string == 'q':
             break
         try:
             requested_object = int(input_string)
-            parapose = parapose_list[requested_object]
+            # print( requested_object )
+            parapose = parapose_set[ list(pose_estimation_parameter_set.keys())[requested_object] ]
         except:
             print("Use accepted input integer")
             continue
@@ -609,23 +657,31 @@ def main():
 
         print('Initial processing took %0.3f s' % (time.time() - start_time_seconds))
 
-        accepted_poses = parapose.computePoseList(device,
-                                                  model,
-                                                  target,
-                                                  depth, 
-                                                  filtered_points, 
-                                                  pointcloud_pointnet_pvn,
-                                                  start_time_seconds,
-                                                  feature_threshold_for_vote=0.7,
-                                                  min_addi_distance=5,
-                                                  min_depth_count=min_depth_count,
-                                                  depth_background_distance=0.005,
-                                                  depth_acc_dist=0.0025,
-                                                  depth_scale=1,
-                                                  viz=True)
+        transform_list = parapose.computePoseList(device,
+                                                    model,
+                                                    filtered_points,
+                                                    pointcloud_pointnet_pvn,
+                                                    feature_threshold_for_vote=0.7,
+                                                    viz=True)
+        
+        print('Computing KeyMatchNet took %0.3f s' % (time.time() - start_time_seconds))
+
+        accepted_poses = parapose.filterPoses( 
+                                            transform_list,
+                                            target,
+                                            depth,
+                                            start_time_seconds=start_time_seconds,
+                                            min_addi_distance=5,
+                                            min_depth_count=min_depth_count,
+                                            depth_background_distance=0.005,
+                                            depth_acc_dist=0.0025,
+                                            depth_scale=1,
+                                            viz=True)
 
         if len(accepted_poses) == 0:
             continue
+
+        angle_comparison_vector = -bin_transformation[:3, 1]
 
         pose_estimation_dictionary = parapose.computeGraspPoses(accepted_poses,
                                                                  bin_name,
@@ -637,6 +693,7 @@ def main():
                                                                  tcp_length=230,
                                                                  finger_width=8.0, 
                                                                  finger_depth=3.0,
+                                                                 angle_comparison_vector=angle_comparison_vector,
                                                                  viz=True)
                                                                  
         print('Grasp estimation took %0.3f s' % (time.time() - start_time_seconds))
