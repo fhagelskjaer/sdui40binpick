@@ -10,7 +10,7 @@ The code used for obtaining grasp poses for the SDUI4.0 Bin Picking project. The
 
 # To test the code:
 
->		python ComputeWithBinPosePytorchKMN.py data/test-cloud-2024-04-30-10-16-12/depth_image_01mm_resolution.png data/test-cloud-2024-04-30-10-16-12/color.png
+>		python ComputeWithBinPosePytorchKMN.py config_wrs.json data/test-cloud-2024-04-30-10-16-12/depth_image_01mm_resolution.png data/test-cloud-2024-04-30-10-16-12/color.png
 
 ### Config File
 
@@ -18,7 +18,7 @@ In config.py camera parameters, bin cad model, bin transform and object informat
 
 The bin transform can be found using:
 
->		python select_bin_position.py data/NormalRackBin.stl data/test-cloud-2024-04-30-10-16-12/depth_image_01mm_resolution.png
+>		python select_bin_position.py config_wrs.json data/NormalRackBin.stl data/test-cloud-2024-04-30-10-16-12/depth_image_01mm_resolution.png
 
 
 # Installation
