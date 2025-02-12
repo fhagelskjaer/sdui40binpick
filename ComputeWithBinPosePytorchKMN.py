@@ -674,17 +674,17 @@ def main():
         angle_comparison_vector = -bin_transformation[:3, 1]
 
         pose_estimation_dictionary = parapose.computeGraspPoses(accepted_poses,
-                                                                 bin_name,
-                                                                 transformation_bin_corrected,
-                                                                 target_show,
-                                                                 finger_color=default_color,
-                                                                 minimum_angle_to_camera=0.52359877559,
-                                                                 z_distance_offset_for_collision_grasp=-20,
-                                                                 tcp_length=230,
-                                                                 finger_width=8.0, 
-                                                                 finger_depth=3.0,
-                                                                 angle_comparison_vector=angle_comparison_vector,
-                                                                 viz=True)
+                                                                    bin_name,
+                                                                    transformation_bin_corrected,
+                                                                    target_show,
+                                                                    finger_color=default_color,
+                                                                    minimum_angle_to_camera=0.52359877559,
+                                                                    z_distance_offset_for_collision_grasp=-20,
+                                                                    tcp_length=230,
+                                                                    finger_width=8.0, 
+                                                                    finger_depth=3.0,
+                                                                    angle_comparison_vector=angle_comparison_vector,
+                                                                    viz=True)
                                                                  
         print('Grasp estimation took %0.3f s' % (time.time() - start_time_seconds))
 
