@@ -12,7 +12,6 @@
 "bin_transformation": [[ 9.99997362e-01, -2.13556524e-03, -8.45510445e-04, -5.39565169e+01], [ 8.56116253e-04,  4.97025455e-03,  9.99987282e-01, -6.85142548e+01], [-2.13133568e-03, -9.99985368e-01,  4.97206974e-03,  5.00738410e+02],  [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]],
 "min_pc_dist": 300,
 "max_pc_dist": 600,
-"pose_estimation_parameter_set": {"wrs_09": ["/home/frhag/workspace/sdui4.0-binpick/data/09_BGPSL6-9-L30-F7.stl", "/home/frhag/workspace/sdui4.0-binpick/generate_grasp/grasp_pose_obj_wrs_000009.pickle"],
-                                "wrs_24": ["/home/frhag/workspace/sdui4.0-binpick/data/24_37D-GEARMOTOR-50-70.roty90.stl", "/home/frhag/workspace/sdui4.0-binpick/generate_grasp/grasp_pose_obj_000003.pickle"]
+"pose_estimation_parameter_set": {"wrs_09": ["data/09_BGPSL6-9-L30-F7.stl", "generate_grasp/grasp_pose_obj_wrs_000009.pickle"]
                                 }
 }
