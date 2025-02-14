@@ -553,7 +553,7 @@ def paramInitializer(args_model_root, args_k, args_emb_dims, num_key):
 
     data = torch.randn((1,6,2048), dtype=torch.float32)
     obj = torch.randn((1,6,2048), dtype=torch.float32)
-    fpi = torch.zeros((1,20), dtype=torch.int64)
+    fpi = torch.zeros((1,args_k), dtype=torch.int64)
 
     model(data, obj, fpi, device)
     
