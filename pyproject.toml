@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sdui40binpick"
+version = "0.6.0"
+authors = [
+  { name="Frederik Hagelskjaer", email="frederikhagel@gmail.com" },
+]
+
+description = "A package for computing grasp poses using KeyMatchNet"
+keywords = ["bin picking", "pose estimation", "zero-shot", "point cloud"]
+readme = "README.md"
+classifiers = [
+      "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+requires-python = ">= 3.9"
+dependencies = [
+    "opencv-python >= 4.11",
+    "python-fcl >= 0.7.0.8",
+    "pyrender >= 0.1.45",
+]
+
+[tool.hatch.build]
+include = [
+  "sdui40binpick/compute_grasp_poses_in_bin.py",
+  "sdui40binpick/compute_inner_bin.py",
+  "sdui40binpick/edgecheck.py",
+  "sdui40binpick/to_cloud.py",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/fhagelskjaer/sdui40binpick"
