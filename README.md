@@ -10,7 +10,7 @@ The code used for obtaining grasp poses for the SDUI4.0 Bin Picking project. The
 
 # To test the code:
 
->		python ComputeWithBinPosePytorchKMN.py config_wrs.json data/test-cloud-2024-04-30-10-16-12/depth_image_01mm_resolution.png data/test-cloud-2024-04-30-10-16-12/color.png
+>		python -m sdui40binpick.compute_grasp_poses_in_bin config_wrs.json data/wrs4/depth_image_01mm_resolution.png data/wrs4/color.png
 
 ### Config File
 
@@ -18,8 +18,7 @@ In config.py camera parameters, bin cad model, bin transform and object informat
 
 The bin transform can be found using:
 
->		python select_bin_position.py config_wrs.json data/NormalRackBin.stl data/test-cloud-2024-04-30-10-16-12/depth_image_01mm_resolution.png
-
+>		python sdui40binpick/select_bin_position.py config_wrs.json data/NormalRackBin.stl data/wrs4/depth_image_01mm_resolution.png data/wrs4/color.png
 
 # Installation
 
@@ -30,9 +29,18 @@ First download and install <a href="https://github.com/fhagelskjaer/keymatchnet"
 Then install the following packages:
 
 >		pip install opencv-python
->		pip install zivid
 >		pip install python-fcl
 >		pip install pyrender==0.1.45
+
+# Running the zivid camera
+
+In the folder "utils" there is a script to capture depth and color data from the zivid camera.
+
+> python sdui40binpick/capture_pc_and_depth_in_folder.py
+
+Before running the script install the zivid drivers from and then install the python package:
+
+>		pip install zivid
 
 # Citation
 If you use this code in your research, please cite the paper:

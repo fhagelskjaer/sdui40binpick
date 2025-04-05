@@ -5,7 +5,6 @@ import trimesh
 import numpy as np
 import open3d as o3d
 import cv2
-from dgl.geometry import farthest_point_sampler
 import copy
 import joblib
 import time
@@ -15,13 +14,16 @@ import json
 
 from scipy.spatial import ConvexHull
 
-from to_cloud import create_point_cloud, create_point_cloud_rgb, point_cloud_to_depth_map
-from compute_inner_bin import create_new_cad
-from edgecheck import loadModel, computeSingleCheck
+from . import (
+    compute_inner_bin,
+    edgecheck,
+    to_cloud,
+)
 
 from keymatchnet.model import DGCNN_gpvn
 from keymatchnet.pe_utils import compute, mm_by_keypoint, addi
 from keymatchnet.data import normalize_1d, normalize_2d, pc_center2cp
+from keymatchnet.fps import farthest_point_sampler
 
 def load_json_config(json_config):
     with open(json_config) as f:
@@ -96,7 +98,7 @@ class ParaPose:
 
         self.model_center = self.obj_pc.get_center()
 
-        self.scene, self.nc, self.r = loadModel(model_name_def,
+        self.scene, self.nc, self.r = edgecheck.loadModel(model_name_def,
                                                camera_mat,
                                                image_size
                                                )
@@ -206,9 +208,7 @@ class ParaPose:
             object_xyz = np.asarray(self.obj_pc.points)
             
             # prepare the object point cloud
-            x = torch.FloatTensor(object_xyz)
-            x = np.reshape(x, (1, -1, 3))
-            fpi = farthest_point_sampler(x, self.number_of_keypoints)
+            fpi = farthest_point_sampler(object_xyz, self.number_of_keypoints)
 
             # object_xyz_feature = object_xyz[fpi[0], :]
 
@@ -222,7 +222,6 @@ class ParaPose:
 
             obj_model = self.obj_pc
             obj = model_pc_out.astype('float32')
-            fpi = fpi[0].cpu().numpy()
 
             mm_dist = mm_by_keypoint(np.asarray(obj_model.points)[fpi, :3])*4
 
@@ -312,7 +311,7 @@ class ParaPose:
     
             detection = [transform, {'fit': score, 'depth_count': 0, 'id': str(uuid.uuid1().hex)}]
                                 
-            detection = computeSingleCheck(detection, 
+            detection = edgecheck.computeSingleCheck(detection, 
                                             depth,
                                             self.scene,
                                             self.nc,
@@ -577,7 +576,7 @@ def main():
 
     # load the bin
     source_mesh_original = o3d.io.read_triangle_mesh(bin_name)
-    source_mesh_inner = create_new_cad(source_mesh_original)
+    source_mesh_inner = compute_inner_bin.create_new_cad(source_mesh_original)
     
     source_mesh_original.paint_uniform_color(default_color)
     source_original = source_mesh_original.sample_points_uniformly(number_of_points=2000)
@@ -618,16 +617,16 @@ def main():
         intrinsics = [camera_mat[0,0], camera_mat[1,1], camera_mat[0,2], camera_mat[1,2]]
         if depth_image_file.split(".")[-1] == "pcd":
             target = o3d.io.read_point_cloud(depth_image_file)
-            depth = point_cloud_to_depth_map(np.asarray(target.points), intrinsics, (image_size[1], image_size[0]) )
+            depth = to_cloud.point_cloud_to_depth_map(np.asarray(target.points), intrinsics, (image_size[1], image_size[0]) )
         else:
             depth = cv2.imread(depth_image_file, cv2.IMREAD_ANYDEPTH)
             depth = depth.astype(np.float32)/10        
             if len(sys.argv) == 4:
                 bgr = cv2.imread(rgb_image_file)
                 rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-                target = create_point_cloud_rgb(depth, rgb, intrinsics)
+                target = to_cloud.create_point_cloud_rgb(depth, rgb, intrinsics)
             else:
-                target = create_point_cloud(depth, intrinsics)
+                target = to_cloud.create_point_cloud(depth, intrinsics)
                 target.paint_uniform_color(default_color)
 
         # remove unnessesary part of point cloud  

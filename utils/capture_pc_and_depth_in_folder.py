@@ -21,7 +21,7 @@ def _point_cloud_to_cv_depth(point_cloud):
     return depth_map
 
 class ZividPcCam:
-    def __init__(self, settings_file = "/home/fhagelskjaer/nov13_spec.yml"):
+    def __init__(self, settings_file = "utils/nov13_spec.yml"):
         app = zivid.Application()
 
         print("Connecting to camera")
