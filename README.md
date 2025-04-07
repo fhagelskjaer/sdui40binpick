@@ -36,9 +36,11 @@ Then install the following packages:
 
 In the folder "utils" there is a script to capture depth and color data from the zivid camera.
 
-> python sdui40binpick/capture_pc_and_depth_in_folder.py
+>		python sdui40binpick/capture_pc_and_depth_in_folder.py
 
-Before running the script install the zivid drivers from and then install the python package:
+
+
+Before running the script install the <a href="https://www.zivid.com/download-software">[zivid drivers]</a> and then install the python package:
 
 >		pip install zivid
 
