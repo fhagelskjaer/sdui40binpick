@@ -4,7 +4,7 @@ import open3d as o3d
 # import json
 import joblib
 
-output_name = "grasp_pose_obj_wrs_000009.pickle" 
+output_name = "grasp_pose_obj_wrs_09.pickle" 
 
 model_name_def = "../data/09_BGPSL6-9-L30-F7.stl"
 
